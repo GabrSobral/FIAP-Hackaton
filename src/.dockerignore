@@ -1,0 +1,18 @@
+# Exclude test project — not needed in the production image
+fiap-hackaton.Tests/
+
+# Build artifacts
+bin/
+obj/
+
+# Local config overrides (secrets stay out of the image)
+appsettings.Development.json
+
+# Docs
+docs/
+
+# IDE / OS files
+.vs/
+.vscode/
+*.user
+.DS_Store

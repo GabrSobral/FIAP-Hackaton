@@ -1,0 +1,93 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: ./src
+      dockerfile: Dockerfile
+    container_name: fiap-hackaton-api
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__PostgreSql: "Host=postgres;Port=5432;Database=fiap_hackaton;Username=postgres;Password=postgres"
+      RabbitMQ__HostName: rabbitmq
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: guest
+      RabbitMQ__Password: guest
+      RabbitMQ__ExchangeName: fiap-hackaton-exchange
+      FileStorage__BasePath: /app/uploads
+      # Local AI service (highest priority — uncomment to use instead of Gemini)
+      LocalAi__BaseUrl: http://ia-service:8000
+      # Gemini (used when LocalAi__BaseUrl is not set)
+      Gemini__ApiKey: AIzaSyCwZzVPSQlu9kxD_cvBKJlTdGF4TWK-eok
+      Gemini__Model: gemini-2.0-flash
+      # OpenAI (fallback) — only used if Gemini key is absent
+      # OpenAI__ApiKey: <your-openai-key-here>
+      # OpenAI__Model: gpt-4o
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ia-service:
+    build:
+      context: ./ia-service
+      dockerfile: Dockerfile
+    container_name: fiap-hackaton-ia
+    ports:
+      - "8001:8000"
+    environment:
+      # Qwen2-VL-2B: good balance of quality and speed (~4 GB download)
+      MODEL_ID: Qwen/Qwen2-VL-2B-Instruct
+      # Switch to 7B for better quality (needs 8 GB+ VRAM or 16 GB+ RAM):
+      # MODEL_ID: Qwen/Qwen2-VL-7B-Instruct
+      DEVICE: auto
+      MAX_NEW_TOKENS: "1024"
+      LOAD_IN_4BIT: "false"
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: fiap-hackaton-postgres
+    environment:
+      POSTGRES_DB: fiap_hackaton
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: fiap-hackaton-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"   # management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  uploads:
+  hf_cache:

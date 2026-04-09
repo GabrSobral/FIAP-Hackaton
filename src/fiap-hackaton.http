@@ -1,0 +1,115 @@
+### FIAP Hackaton — Architecture Diagram Analyzer API
+
+@baseUrl = http://localhost:5000
+
+# Replace after a successful POST:
+@analysisId = 00000000-0000-0000-0000-000000000000
+
+
+# ──────────────────────────────────────────────────
+# Health
+# ──────────────────────────────────────────────────
+
+### Health check
+GET {{baseUrl}}/health
+
+
+# ──────────────────────────────────────────────────
+# POST /api/v1/analyses — Upload a diagram
+# ──────────────────────────────────────────────────
+
+### Upload JPEG diagram
+# Point the < path to a real image on disk.
+POST {{baseUrl}}/api/v1/analyses
+Content-Type: multipart/form-data; boundary=----Boundary
+
+------Boundary
+Content-Disposition: form-data; name="file"; filename="diagram.jpg"
+Content-Type: image/jpeg
+
+< ./diagram.jpg
+------Boundary--
+
+###
+
+### Upload PNG diagram
+POST {{baseUrl}}/api/v1/analyses
+Content-Type: multipart/form-data; boundary=----Boundary
+
+------Boundary
+Content-Disposition: form-data; name="file"; filename="diagram.png"
+Content-Type: image/png
+
+< ./diagram.png
+------Boundary--
+
+###
+
+### Upload PDF
+POST {{baseUrl}}/api/v1/analyses
+Content-Type: multipart/form-data; boundary=----Boundary
+
+------Boundary
+Content-Disposition: form-data; name="file"; filename="architecture.pdf"
+Content-Type: application/pdf
+
+< ./architecture.pdf
+------Boundary--
+
+###
+
+### Upload invalid type — expects 400
+POST {{baseUrl}}/api/v1/analyses
+Content-Type: multipart/form-data; boundary=----Boundary
+
+------Boundary
+Content-Disposition: form-data; name="file"; filename="data.txt"
+Content-Type: text/plain
+
+Hello world
+------Boundary--
+
+
+# ──────────────────────────────────────────────────
+# GET /api/v1/analyses/{id} — Analysis details
+# ──────────────────────────────────────────────────
+
+### Get analysis by ID
+GET {{baseUrl}}/api/v1/analyses/{{analysisId}}
+X-Correlation-Id: test-correlation-001
+
+###
+
+### Get analysis — not found (expects 404)
+GET {{baseUrl}}/api/v1/analyses/00000000-0000-0000-0000-000000000001
+
+
+# ──────────────────────────────────────────────────
+# GET /api/v1/analyses/{id}/status — Processing status
+# ──────────────────────────────────────────────────
+
+### Get status
+GET {{baseUrl}}/api/v1/analyses/{{analysisId}}/status
+
+###
+
+### Get status — not found (expects 404)
+GET {{baseUrl}}/api/v1/analyses/00000000-0000-0000-0000-000000000001/status
+
+
+# ──────────────────────────────────────────────────
+# GET /api/v1/analyses/{id}/report — AI report
+# ──────────────────────────────────────────────────
+
+### Get AI-generated report (analysis must be Processed)
+GET {{baseUrl}}/api/v1/analyses/{{analysisId}}/report
+
+###
+
+### Get report — not found (expects 404)
+GET {{baseUrl}}/api/v1/analyses/00000000-0000-0000-0000-000000000001/report
+
+###
+
+### Get report — not ready yet (expects 400 when status ≠ Processed)
+GET {{baseUrl}}/api/v1/analyses/{{analysisId}}/report

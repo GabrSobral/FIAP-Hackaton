@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ArchAnalyzer — AI-Powered Architecture Review</title>
+  <meta name="description" content="Upload your architecture diagram and get an instant AI-generated report on components, risks, and recommendations." />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%233b82f6'/><text y='.9em' font-size='70' x='15'>🏗</text></svg>" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="styles/variables.css" />
+  <link rel="stylesheet" href="styles/base.css" />
+  <link rel="stylesheet" href="styles/layout.css" />
+
+  <!--
+    To point the frontend at a different backend, uncomment and edit:
+    <script>window.__API_BASE__ = 'https://your-api-host.com';</script>
+  -->
+
+  <!-- App (type=module → deferred, custom elements upgrade after parse) -->
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+
+  <!-- ── Header ──────────────────────────────────────────────────────────── -->
+  <header class="app-header">
+    <div class="header-inner">
+
+      <a href="/" class="logo" aria-label="ArchAnalyzer home">
+        <div class="logo-icon" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2.5"
+               stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+        </div>
+        <div>
+          <div class="logo-text">ArchAnalyzer</div>
+          <span class="logo-badge">AI-Powered</span>
+        </div>
+      </a>
+
+      <theme-toggle></theme-toggle>
+
+    </div>
+  </header>
+
+  <!-- ── Main ────────────────────────────────────────────────────────────── -->
+  <main class="main-content" id="main">
+
+    <!-- Hero blurb -->
+    <div class="hero">
+      <h1 class="hero-title">Architecture Diagram Analyzer</h1>
+      <p class="hero-sub">
+        Upload a diagram of your software architecture and receive an AI-generated report
+        covering components, risks, and actionable recommendations.
+      </p>
+    </div>
+
+    <!-- Step 1 — Upload -->
+    <section class="section" aria-labelledby="step1-label">
+      <div class="section-header">
+        <span class="section-step" aria-hidden="true">1</span>
+        <span class="section-label" id="step1-label">Upload your architecture diagram</span>
+        <span class="section-divider" aria-hidden="true"></span>
+      </div>
+      <upload-dropzone id="dropzone"></upload-dropzone>
+    </section>
+
+    <!-- Step 2 — Status (hidden until upload) -->
+    <section class="section" id="section-status" hidden aria-labelledby="step2-label" aria-live="polite">
+      <div class="section-header">
+        <span class="section-step" aria-hidden="true">2</span>
+        <span class="section-label" id="step2-label">Processing status</span>
+        <span class="section-divider" aria-hidden="true"></span>
+      </div>
+      <status-tracker id="tracker"></status-tracker>
+    </section>
+
+    <!-- Step 3 — Report (hidden until processed) -->
+    <section class="section" id="section-report" hidden aria-labelledby="step3-label">
+      <div class="section-header">
+        <span class="section-step" aria-hidden="true">3</span>
+        <span class="section-label" id="step3-label">AI analysis report</span>
+        <span class="section-divider" aria-hidden="true"></span>
+      </div>
+      <report-panel id="report"></report-panel>
+    </section>
+
+    <!-- History — always visible -->
+    <section class="section" id="section-history" aria-labelledby="history-label">
+      <div class="section-header">
+        <span class="section-label" id="history-label">All analyses</span>
+        <span class="section-divider" aria-hidden="true"></span>
+      </div>
+      <history-panel id="history"></history-panel>
+    </section>
+
+  </main>
+
+  <!-- ── Footer ──────────────────────────────────────────────────────────── -->
+  <footer class="app-footer">
+    <p>ArchAnalyzer &mdash; FIAP Hackathon &nbsp;&middot;&nbsp; Supported formats: JPG, PNG, GIF, WEBP, PDF (max 10&thinsp;MB)</p>
+  </footer>
+
+  <!-- Toast container -->
+  <app-toast></app-toast>
+
+</body>
+</html>
