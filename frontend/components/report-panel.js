@@ -1,4 +1,8 @@
 import { LitElement, html, css } from 'https://esm.sh/lit@3';
+import { unsafeHTML } from 'https://esm.sh/lit@3/directives/unsafe-html.js';
+import { marked } from 'https://esm.sh/marked@9';
+
+marked.use({ gfm: true, breaks: false });
 
 // ─── Card definitions ─────────────────────────────────────────────────────────
 
@@ -48,18 +52,16 @@ const iconCheck = html`<svg xmlns="http://www.w3.org/2000/svg" width="14" height
 
 class ReportPanel extends LitElement {
   static styles = css`
-    :host {
-      display: block;
-    }
+    :host { display: block; }
 
-    /* ── Grid ───────────────────────────────────────────────────────────────── */
+    /* ── Stack ────────────────────────────────────────────────────────────── */
     .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      display: flex;
+      flex-direction: column;
       gap: var(--space-5);
     }
 
-    /* ── Card ───────────────────────────────────────────────────────────────── */
+    /* ── Card ─────────────────────────────────────────────────────────────── */
     .card {
       background: var(--bg-surface);
       border: 1px solid var(--border);
@@ -76,6 +78,14 @@ class ReportPanel extends LitElement {
       transform: translateY(-2px);
     }
 
+    /* Top accent stripe */
+    .card-stripe {
+      height: 3px;
+      width: 100%;
+      flex-shrink: 0;
+    }
+
+    /* ── Header ───────────────────────────────────────────────────────────── */
     .card-header {
       display: flex;
       align-items: flex-start;
@@ -102,16 +112,17 @@ class ReportPanel extends LitElement {
       letter-spacing: -0.01em;
       color: var(--text-primary);
       line-height: 1.3;
+      margin: 0;
     }
 
     .card-desc {
       font-size: var(--text-xs);
       color: var(--text-muted);
-      margin-top: 2px;
+      margin: 2px 0 0;
       line-height: 1.4;
     }
 
-    /* ── Copy button ────────────────────────────────────────────────────────── */
+    /* ── Copy button ──────────────────────────────────────────────────────── */
     .copy-btn {
       display: inline-flex;
       align-items: center;
@@ -144,22 +155,131 @@ class ReportPanel extends LitElement {
       background: var(--success-subtle);
     }
 
-    /* ── Body ───────────────────────────────────────────────────────────────── */
+    /* ── Body ─────────────────────────────────────────────────────────────── */
     .card-body {
       padding: var(--space-5);
       flex: 1;
-      overflow: auto;
     }
 
-    .card-content {
+    /* ── Markdown body ────────────────────────────────────────────────────── */
+    .md-body {
       font-size: var(--text-sm);
       color: var(--text-secondary);
-      line-height: 1.75;
-      white-space: pre-wrap;
-      word-break: break-word;
+      line-height: 1.7;
     }
 
-    /* ── Footer ─────────────────────────────────────────────────────────────── */
+    .md-body h1,
+    .md-body h2,
+    .md-body h3 {
+      color: var(--text-primary);
+      font-weight: 700;
+      line-height: 1.3;
+      margin: var(--space-4) 0 var(--space-2);
+    }
+
+    .md-body h1:first-child,
+    .md-body h2:first-child,
+    .md-body h3:first-child { margin-top: 0; }
+
+    .md-body h1 { font-size: var(--text-lg); }
+    .md-body h2 { font-size: var(--text-base); }
+    .md-body h3 { font-size: var(--text-sm); font-weight: 600; }
+
+    .md-body p {
+      margin: 0 0 var(--space-3);
+    }
+
+    .md-body p:last-child { margin-bottom: 0; }
+
+    .md-body ul,
+    .md-body ol {
+      padding-left: 1.5em;
+      margin: 0 0 var(--space-3);
+    }
+
+    .md-body ul { list-style-type: disc; }
+    .md-body ol { list-style-type: decimal; }
+
+    .md-body ul:last-child,
+    .md-body ol:last-child { margin-bottom: 0; }
+
+    .md-body li {
+      line-height: 1.65;
+      margin-bottom: 4px;
+    }
+
+    .md-body li:last-child { margin-bottom: 0; }
+
+    .md-body li > p { margin-bottom: var(--space-1); }
+    .md-body li > p:last-child { margin-bottom: 0; }
+
+    /* nested lists */
+    .md-body li > ul,
+    .md-body li > ol {
+      margin-top: 4px;
+      margin-bottom: 0;
+    }
+
+    .md-body strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .md-body em { font-style: italic; }
+
+    .md-body code {
+      font-family: var(--font-mono);
+      font-size: 0.85em;
+      background: var(--bg-elevated);
+      padding: 1px 5px;
+      border-radius: var(--radius-sm);
+      color: var(--accent);
+    }
+
+    .md-body pre {
+      background: var(--bg-inset);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-3) var(--space-4);
+      overflow-x: auto;
+      margin: 0 0 var(--space-3);
+    }
+
+    .md-body pre:last-child { margin-bottom: 0; }
+
+    .md-body pre code {
+      background: none;
+      padding: 0;
+      font-size: var(--text-xs);
+      color: var(--text-primary);
+      border-radius: 0;
+    }
+
+    .md-body blockquote {
+      border-left: 3px solid var(--border-strong);
+      padding-left: var(--space-3);
+      color: var(--text-muted);
+      margin: 0 0 var(--space-3);
+      font-style: italic;
+    }
+
+    .md-body hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: var(--space-4) 0;
+    }
+
+    /* ── Empty state ──────────────────────────────────────────────────────── */
+    .empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-6);
+      color: var(--text-muted);
+      font-size: var(--text-sm);
+    }
+
+    /* ── Panel footer ─────────────────────────────────────────────────────── */
     .panel-footer {
       display: flex;
       align-items: center;
@@ -171,15 +291,11 @@ class ReportPanel extends LitElement {
     }
 
     .panel-footer svg { flex-shrink: 0; }
-
-    @media (max-width: 640px) {
-      .grid { grid-template-columns: 1fr; }
-    }
   `;
 
   static properties = {
-    report:        { type: Object },
-    _copiedKey:    { state: true },
+    report:     { type: Object },
+    _copiedKey: { state: true },
   };
 
   constructor() {
@@ -191,39 +307,49 @@ class ReportPanel extends LitElement {
   render() {
     if (!this.report) return html``;
 
-    const { components, risks, recommendations, generatedAt } = this.report;
-    const generated = new Date(generatedAt);
+    const generated = new Date(this.report.generatedAt);
 
     return html`
       <div class="grid">
         ${CARDS
-          .filter((card) => card.key !== 'feedback' || this.report.feedback)
-          .map((card) => this._renderCard(card, this.report[card.key] ?? ''))}
+          .filter(card => card.key !== 'feedback' || this.report.feedback)
+          .map(card => this._renderCard(card, this.report[card.key] ?? ''))}
       </div>
 
       <div class="panel-footer">
-        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
         Report generated ${generated.toLocaleString()}
       </div>
     `;
   }
 
-  _renderCard(card, content) {
+  _renderCard(card, rawContent) {
     const copied = this._copiedKey === card.key;
+    const mdHtml = rawContent?.trim() ? marked.parse(rawContent) : '';
 
     return html`
       <div class="card">
+        <div class="card-stripe" style="background:${card.color}"></div>
+
         <div class="card-header">
-          <div class="card-icon" style="background:${card.bg};color:${card.color};border:1px solid ${card.border}">
+          <div class="card-icon"
+               style="background:${card.bg};color:${card.color};border:1px solid ${card.border}">
             ${card.icon}
           </div>
+
           <div class="card-titles">
             <h3 class="card-title">${card.title}</h3>
             <p class="card-desc">${card.desc}</p>
           </div>
+
           <button
             class="copy-btn ${copied ? 'copied' : ''}"
-            @click=${() => this._copy(card.key, content)}
+            @click=${() => this._copy(card.key, rawContent)}
             title="Copy ${card.title}"
           >
             ${copied ? iconCheck : iconCopy}
@@ -232,7 +358,9 @@ class ReportPanel extends LitElement {
         </div>
 
         <div class="card-body">
-          <p class="card-content">${content}</p>
+          ${mdHtml
+            ? html`<div class="md-body">${unsafeHTML(mdHtml)}</div>`
+            : html`<div class="empty">No content</div>`}
         </div>
       </div>
     `;

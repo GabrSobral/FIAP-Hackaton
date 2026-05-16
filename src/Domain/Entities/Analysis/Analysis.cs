@@ -52,6 +52,14 @@ public class Analysis : Entity
         UpdatedAt = DateTime.UtcNow;
     }
 
+    // Status-only overload; Report is inserted separately by infrastructure to avoid
+    // EF Core batching UPDATE Analyses + INSERT Reports in a single Npgsql round-trip.
+    public void MarkAsProcessed()
+    {
+        Status = AnalysisStatus.Processed;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void MarkAsError(string errorMessage)
     {
         Status = AnalysisStatus.Error;

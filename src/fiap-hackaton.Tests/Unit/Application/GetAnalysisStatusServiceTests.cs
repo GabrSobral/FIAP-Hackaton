@@ -10,12 +10,20 @@ namespace fiap_hackaton.Tests.Unit.Application;
 
 public class GetAnalysisStatusServiceTests
 {
-    private readonly Mock<IAnalysisRepository> _repoMock = new();
-    private readonly GetAnalysisStatusService  _sut;
+    private readonly Mock<IAnalysisRepository>    _repoMock   = new();
+    private readonly Mock<IAnalysisLogRepository> _logRepoMock = new();
+    private readonly GetAnalysisStatusService     _sut;
 
     public GetAnalysisStatusServiceTests()
     {
-        _sut = new GetAnalysisStatusService(NullLogger<GetAnalysisStatusService>.Instance, _repoMock.Object);
+        _logRepoMock
+            .Setup(r => r.GetByAnalysisId(It.IsAny<Guid>()))
+            .Returns([]);
+
+        _sut = new GetAnalysisStatusService(
+            NullLogger<GetAnalysisStatusService>.Instance,
+            _repoMock.Object,
+            _logRepoMock.Object);
     }
 
     [Theory]

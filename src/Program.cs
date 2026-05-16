@@ -7,6 +7,7 @@ using fiap_hackaton.Presentation;
 using fiap_hackaton.Presentation.Endpoints;
 using fiap_hackaton.Presentation.Middlewares;
 using Microsoft.EntityFrameworkCore;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,7 +47,10 @@ using (var scope = app.Services.CreateScope())
 }
 
 if (app.Environment.IsDevelopment())
+{
     app.MapOpenApi();
+    app.MapScalarApiReference();
+}
 
 app.UseHttpsRedirection();
 app.UseCors();

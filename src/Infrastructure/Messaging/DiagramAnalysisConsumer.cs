@@ -4,6 +4,7 @@ using fiap_hackaton.Domain.Entities.Analysis;
 using fiap_hackaton.Domain.Events;
 using fiap_hackaton.Domain.Interfaces;
 using fiap_hackaton.Domain.Interfaces.Repositories;
+using fiap_hackaton.Infrastructure.Database;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
@@ -154,9 +155,19 @@ public class DiagramAnalysisConsumer : BackgroundService
                 aiResult.Recommendations,
                 aiResult.Feedback);
 
-            analysis.MarkAsProcessed(report);
-            await analysisRepo.UpdateAsync(analysis);
-            await unitOfWork.SaveChangesAsync();
+            // Use a fresh scope so the DbContext has no previously-tracked entities.
+            // This prevents EF Core from batching the Analysis UPDATE with the Report INSERT
+            // in a single Npgsql round-trip (which triggers DbUpdateConcurrencyException).
+            using var processedScope = _scopeFactory.CreateScope();
+            var processedDb  = processedScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var processedUow = processedScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            var freshAnalysis = await processedDb.Analyses.FindAsync(@event.AnalysisId);
+            freshAnalysis!.MarkAsProcessed(); // status-only — no Report navigation, no auto-tracking
+            await processedUow.SaveChangesAsync(); // ONLY UPDATE "Analyses"
+
+            await processedDb.Reports.AddAsync(report);
+            await processedUow.SaveChangesAsync(); // ONLY INSERT "Reports"
 
             await LogProgressAsync(_logger, logRepo, unitOfWork, @event.AnalysisId, "info",
                 "Report generated successfully");
@@ -165,14 +176,32 @@ public class DiagramAnalysisConsumer : BackgroundService
         }
         catch (Exception ex)
         {
-            await LogProgressAsync(_logger, logRepo, unitOfWork, @event.AnalysisId, "error",
-                $"Analysis failed: {ex.Message}");
-
-            analysis.MarkAsError(ex.Message);
-            await analysisRepo.UpdateAsync(analysis);
-            await unitOfWork.SaveChangesAsync();
-
             _logger.LogError(ex, "AI processing failed for analysis {AnalysisId}.", @event.AnalysisId);
+
+            // Use a fresh scope so a corrupted DbContext from the failed operation doesn't
+            // prevent the error state from being persisted.
+            using var errorScope = _scopeFactory.CreateScope();
+            var errorRepo = errorScope.ServiceProvider.GetRequiredService<IAnalysisRepository>();
+            var errorLogRepo = errorScope.ServiceProvider.GetRequiredService<IAnalysisLogRepository>();
+            var errorUow  = errorScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            try
+            {
+                var freshAnalysis = await errorRepo.GetByIdAsync(@event.AnalysisId);
+                if (freshAnalysis is not null)
+                {
+                    await LogProgressAsync(_logger, errorLogRepo, errorUow, @event.AnalysisId, "error",
+                        $"Analysis failed: {ex.Message}");
+
+                    freshAnalysis.MarkAsError(ex.Message);
+                    await errorRepo.UpdateAsync(freshAnalysis);
+                    await errorUow.SaveChangesAsync();
+                }
+            }
+            catch (Exception saveEx)
+            {
+                _logger.LogError(saveEx, "Failed to persist error state for analysis {AnalysisId}.", @event.AnalysisId);
+            }
         }
     }
 

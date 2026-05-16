@@ -23,17 +23,17 @@ public static class DependencyInjection
         }
         else if (hasGemini)
         {
-            services.AddHttpClient("gemini");
+            services.AddHttpClient("gemini", client => client.Timeout = TimeSpan.FromMinutes(2));
             services.AddScoped<IAiAnalysisService, GeminiAnalysisService>();
         }
         else if (hasAnthropic)
         {
-            services.AddHttpClient("anthropic");
+            services.AddHttpClient("anthropic", client => client.Timeout = TimeSpan.FromMinutes(2));
             services.AddScoped<IAiAnalysisService, ClaudeAnalysisService>();
         }
         else if (hasOpenAi)
         {
-            services.AddHttpClient("openai");
+            services.AddHttpClient("openai", client => client.Timeout = TimeSpan.FromMinutes(2));
             services.AddScoped<IAiAnalysisService, OpenAiAnalysisService>();
         }
         else

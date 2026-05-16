@@ -26,13 +26,6 @@ public class AnalysisRepository(AppDbContext dbContext) : IAnalysisRepository
     public Task UpdateAsync(Analysis analysis, CancellationToken cancellationToken = default)
     {
         dbContext.Entry(analysis).State = EntityState.Modified;
-
-        if (analysis.Report is not null &&
-            dbContext.Entry(analysis.Report).State == EntityState.Detached)
-        {
-            dbContext.Entry(analysis.Report).State = EntityState.Added;
-        }
-
         return Task.CompletedTask;
     }
 }

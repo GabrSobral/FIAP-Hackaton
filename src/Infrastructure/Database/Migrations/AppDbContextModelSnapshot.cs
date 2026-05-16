@@ -99,6 +99,35 @@ namespace fiap_hackaton.Infrastructure.Database.Migrations
                     b.ToTable("Reports");
                 });
 
+            modelBuilder.Entity("fiap_hackaton.Domain.Entities.Analysis.AnalysisLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AnalysisId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Level")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AnalysisId");
+
+                    b.ToTable("AnalysisLogs");
+                });
+
             modelBuilder.Entity("fiap_hackaton.Domain.Entities.Analysis.Report", b =>
                 {
                     b.HasOne("fiap_hackaton.Domain.Entities.Analysis.Analysis", null)
