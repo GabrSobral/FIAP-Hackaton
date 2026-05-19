@@ -139,7 +139,7 @@ flowchart TD
     end
 
     subgraph GW["API Gateway - nginx - porta 80"]
-        NGINX["Proxy Reverso\n/api/v1/reports/* → report-service:8080\n/api/v1/* e /health → api:8080\nSSE: proxy_buffering off"]
+        NGINX["Proxy Reverso<br/>/api/v1/reports/* - report-service:8080<br/>/api/v1/* e /health - api:8080<br/>SSE: proxy_buffering off"]
     end
 
     subgraph API["api - Upload e Orquestracao - ASP.NET Core - interno"]
@@ -155,19 +155,19 @@ flowchart TD
     end
 
     subgraph WORKER["analysis-worker - microsservico - interno"]
-        CON["DiagramAnalysisConsumer\nconsume fila - chama IA - persiste resultado"]
+        CON["DiagramAnalysisConsumer<br/>consume fila - chama IA - persiste resultado"]
     end
 
     subgraph REPSVC["report-service - microsservico - interno"]
-        REP["GET /api/v1/reports/id\nle Reports de postgres-worker"]
+        REP["GET /api/v1/reports/id<br/>le Reports de postgres-worker"]
     end
 
     subgraph DB_API["postgres-api - banco do api"]
-        PG_API[("fiap_hackaton\nAnalyses\nAnalysisLogs")]
+        PG_API[("fiap_hackaton<br/>Analyses<br/>AnalysisLogs")]
     end
 
     subgraph DB_WORKER["postgres-worker - banco do worker"]
-        PG_WORKER[("worker_db\nReports")]
+        PG_WORKER[("worker_db<br/>Reports")]
     end
 
     subgraph Infra["Infraestrutura - Docker Compose - rede interna"]
