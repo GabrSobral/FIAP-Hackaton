@@ -1,0 +1,14 @@
+<Project>
+  <!--
+    Force all projects in this repo to use EF Core 10.0.5.
+    The Docker SDK (10.0.300) bundles 10.0.4 as a transitive dependency,
+    which conflicts with the 10.0.5 that Npgsql 10.0.1 resolves to.
+    This override ensures a consistent version across all projects.
+  -->
+  <ItemGroup>
+    <PackageReference Update="Microsoft.EntityFrameworkCore" Version="10.0.5" />
+    <PackageReference Update="Microsoft.EntityFrameworkCore.Relational" Version="10.0.5" />
+    <PackageReference Update="Microsoft.EntityFrameworkCore.Abstractions" Version="10.0.5" />
+    <PackageReference Update="Microsoft.EntityFrameworkCore.Design" Version="10.0.5" />
+  </ItemGroup>
+</Project>

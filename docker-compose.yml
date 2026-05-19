@@ -10,6 +10,7 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - api
+      - report-service
     restart: unless-stopped
 
   api:
@@ -19,7 +20,7 @@ services:
     container_name: fiap-hackaton-api
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__PostgreSql: "Host=postgres;Port=5432;Database=fiap_hackaton;Username=postgres;Password=postgres"
+      ConnectionStrings__PostgreSql: "Host=postgres-api;Port=5432;Database=fiap_hackaton;Username=postgres;Password=postgres"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: guest
@@ -28,6 +29,7 @@ services:
       FileStorage__BasePath: /app/uploads
       Cors__AllowedOrigins__0: "http://localhost"
       Cors__AllowedOrigins__1: "http://localhost:3000"
+      Cors__AllowedOrigins__2: "http://127.0.0.1:5500"
       # Local AI service (highest priority — uncomment to use instead of Claude)
       # LocalAi__BaseUrl: http://ia-service:8000
       # Gemini (uncomment to use instead of Claude)
@@ -42,9 +44,52 @@ services:
     volumes:
       - uploads:/app/uploads
     depends_on:
-      postgres:
+      postgres-api:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  analysis-worker:
+    build:
+      context: .
+      dockerfile: workers/analysis-worker/Dockerfile
+    container_name: fiap-hackaton-analysis-worker
+    environment:
+      ConnectionStrings__PostgreSql: "Host=postgres-api;Port=5432;Database=fiap_hackaton;Username=postgres;Password=postgres"
+      ConnectionStrings__WorkerDb: "Host=postgres-worker;Port=5432;Database=worker_db;Username=postgres;Password=postgres"
+      RabbitMQ__HostName: rabbitmq
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: guest
+      RabbitMQ__Password: guest
+      RabbitMQ__ExchangeName: fiap-hackaton-exchange
+      # LocalAi__BaseUrl: http://ia-service:8000
+      Anthropic__ApiKey: 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
+      Anthropic__Model: claude-sonnet-4-6
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      postgres-api:
+        condition: service_healthy
+      postgres-worker:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  report-service:
+    build:
+      context: .
+      dockerfile: workers/report-service/Dockerfile
+    container_name: fiap-hackaton-report-service
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__WorkerDb: "Host=postgres-worker;Port=5432;Database=worker_db;Username=postgres;Password=postgres"
+      Cors__AllowedOrigins__0: "http://localhost"
+      Cors__AllowedOrigins__1: "http://localhost:3000"
+      Cors__AllowedOrigins__2: "http://127.0.0.1:5500"
+    depends_on:
+      postgres-worker:
         condition: service_healthy
     restart: unless-stopped
 
@@ -65,15 +110,31 @@ services:
       - hf_cache:/root/.cache/huggingface
     restart: unless-stopped
 
-  postgres:
+  postgres-api:
     image: postgres:16-alpine
-    container_name: fiap-hackaton-postgres
+    container_name: fiap-hackaton-postgres-api
     environment:
       POSTGRES_DB: fiap_hackaton
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata-api:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  postgres-worker:
+    image: postgres:16-alpine
+    container_name: fiap-hackaton-postgres-worker
+    environment:
+      POSTGRES_DB: worker_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata-worker:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -97,6 +158,7 @@ services:
     restart: unless-stopped
 
 volumes:
-  pgdata:
+  pgdata-api:
+  pgdata-worker:
   uploads:
   hf_cache:

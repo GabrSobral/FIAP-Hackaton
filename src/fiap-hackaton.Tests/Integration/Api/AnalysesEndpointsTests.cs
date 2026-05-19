@@ -122,7 +122,13 @@ public class AnalysesEndpointsTests : IClassFixture<TestWebApplicationFactory>
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    // ─── GET /api/v1/analyses/{id}/report ────────────────────────────────────
+    // ─── GET /api/v1/analyses/{id}/report (endpoint legado da api) ───────────
+    // Este endpoint ainda existe na api e usa AppDbContext.
+    // Em produção, novos reports são gravados em worker_db pelo analysis-worker
+    // e servidos pelo report-service em GET /api/v1/reports/{id}.
+    // Estes testes validam o contrato do endpoint da api em isolamento,
+    // inserindo Reports diretamente no AppDbContext (InMemory).
+    // Veja ReportEndpointTests para os testes do report-service.
 
     [Fact]
     public async Task GetReport_WithProcessedAnalysis_ShouldReturn200()

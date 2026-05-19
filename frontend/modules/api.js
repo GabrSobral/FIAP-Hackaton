@@ -66,7 +66,7 @@ export function getAnalysisStatus(id) {
  * @returns {Promise<{ analysisId: string, components: string, risks: string, recommendations: string, generatedAt: string }>}
  */
 export function getAnalysisReport(id) {
-  return request('GET', `/api/v1/analyses/${id}/report`);
+  return request('GET', `/api/v1/reports/${id}`);
 }
 
 /**

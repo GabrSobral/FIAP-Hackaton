@@ -22,9 +22,6 @@ public static class DependencyInjection
             }
         });
 
-        // Background worker that consumes the 'diagram-analysis' queue
-        services.AddHostedService<DiagramAnalysisConsumer>();
-
         return services;
     }
 }

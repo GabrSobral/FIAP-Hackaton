@@ -177,10 +177,12 @@ public class DiagramAnalysisConsumer : BackgroundService
 
             var freshAnalysis = await processedDb.Analyses.FindAsync(@event.AnalysisId);
             freshAnalysis!.MarkAsProcessed(); // status-only — no Report navigation, no auto-tracking
-            await processedUow.SaveChangesAsync(); // ONLY UPDATE "Analyses"
+            await processedUow.SaveChangesAsync(); // ONLY UPDATE "Analyses" in api_db
 
-            await processedDb.Reports.AddAsync(report);
-            await processedUow.SaveChangesAsync(); // ONLY INSERT "Reports"
+            // Write Report to worker_db (database-per-service)
+            var workerDb = processedScope.ServiceProvider.GetRequiredService<WorkerDbContext>();
+            await workerDb.Reports.AddAsync(report);
+            await workerDb.SaveChangesAsync(); // INSERT "Reports" in worker_db
 
             await LogProgressAsync(_logger, logRepo, unitOfWork, @event.AnalysisId, "info",
                 "Report generated successfully");

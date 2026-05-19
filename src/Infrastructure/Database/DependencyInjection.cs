@@ -22,4 +22,17 @@ public static class DependencyInjection
 
         return services;
     }
+
+    public static IServiceCollection AddWorkerDatabase(this IServiceCollection services, IConfiguration configuration)
+    {
+        var connectionString = configuration.GetConnectionString("WorkerDb")
+            ?? throw new InvalidOperationException("Connection string 'WorkerDb' is not configured.");
+
+        services.AddDbContext<WorkerDbContext>(options =>
+            options.UseNpgsql(connectionString,
+                o => o.MigrationsAssembly("fiap-hackaton")
+                       .MigrationsHistoryTable("__WorkerMigrationsHistory")));
+
+        return services;
+    }
 }
