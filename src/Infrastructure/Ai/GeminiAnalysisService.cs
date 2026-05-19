@@ -83,10 +83,22 @@ public class GeminiAnalysisService(
                 var parsed = JsonNode.Parse(clean)
                     ?? throw new InvalidOperationException("Gemini returned an empty JSON body.");
 
-                return new AiAnalysisResult(
+                var analysisResult = new AiAnalysisResult(
                     NodeToString(parsed, "components"),
                     NodeToString(parsed, "risks"),
                     NodeToString(parsed, "recommendations"));
+
+                try
+                {
+                    return AiOutputGuardrails.ValidateAndSanitize(analysisResult, logger, "Gemini");
+                }
+                catch (AiGuardrailException ex) when (attempt < MaxRetries)
+                {
+                    logger.LogWarning(
+                        "Gemini guardrail failed (attempt {Attempt}/{Max}): {Message}. Retrying…",
+                        attempt, MaxRetries, ex.Message);
+                    continue;
+                }
             }
 
             // 429 = rate limited — wait and retry with exponential backoff

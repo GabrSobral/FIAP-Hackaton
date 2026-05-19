@@ -51,11 +51,13 @@ public class LocalAiAnalysisService(
             "Local AI analysis completed in {Ms} ms using {Model}",
             result.ProcessingTimeMs, result.ModelUsed);
 
-        return new AiAnalysisResult(
+        var analysisResult = new AiAnalysisResult(
             result.Components,
             result.Risks,
             result.Recommendations,
             result.Feedback);
+
+        return AiOutputGuardrails.ValidateAndSanitize(analysisResult, logger, "LocalAI");
     }
 
     private record LocalAiResponse(

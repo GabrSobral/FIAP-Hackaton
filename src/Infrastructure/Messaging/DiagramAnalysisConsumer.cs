@@ -44,30 +44,43 @@ public class DiagramAnalysisConsumer : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        try
-        {
-            await ConnectAsync(stoppingToken);
-            _logger.LogInformation("DiagramAnalysisConsumer started. Listening on queue '{Queue}'.", QueueName);
+        var attempt = 0;
 
-            var consumer = new AsyncEventingBasicConsumer(_channel!);
-            consumer.ReceivedAsync += OnMessageReceivedAsync;
-
-            await _channel!.BasicConsumeAsync(
-                queue:       QueueName,
-                autoAck:     false,
-                consumer:    consumer,
-                cancellationToken: stoppingToken);
-
-            // Keep alive until cancellation
-            await Task.Delay(Timeout.Infinite, stoppingToken);
-        }
-        catch (OperationCanceledException)
+        while (!stoppingToken.IsCancellationRequested)
         {
-            _logger.LogInformation("DiagramAnalysisConsumer stopping.");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "DiagramAnalysisConsumer failed to start. Queue processing is disabled.");
+            try
+            {
+                attempt++;
+                await ConnectAsync(stoppingToken);
+                _logger.LogInformation("DiagramAnalysisConsumer started. Listening on queue '{Queue}'.", QueueName);
+
+                var consumer = new AsyncEventingBasicConsumer(_channel!);
+                consumer.ReceivedAsync += OnMessageReceivedAsync;
+
+                await _channel!.BasicConsumeAsync(
+                    queue:       QueueName,
+                    autoAck:     false,
+                    consumer:    consumer,
+                    cancellationToken: stoppingToken);
+
+                attempt = 0; // reset after successful connect
+                await Task.Delay(Timeout.Infinite, stoppingToken);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation("DiagramAnalysisConsumer stopping.");
+                break;
+            }
+            catch (Exception ex)
+            {
+                var delaySecs = Math.Min(30, (int)Math.Pow(2, attempt));
+                _logger.LogWarning(ex,
+                    "DiagramAnalysisConsumer connection failed (attempt {Attempt}). Retrying in {Delay}s.",
+                    attempt, delaySecs);
+
+                try { await Task.Delay(TimeSpan.FromSeconds(delaySecs), stoppingToken); }
+                catch (OperationCanceledException) { break; }
+            }
         }
     }
 

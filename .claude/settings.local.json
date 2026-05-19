@@ -12,7 +12,13 @@
       "Bash(docker ps:*)",
       "Bash(curl:*)",
       "Bash(grep -ri --include=*.cs \"audit\\\\|Audit\\\\|log\\\\|Log\\\\|event.*sourcing\\\\|domain.*event\\\\|DomainEvent\\\\|Entity.*Log\" /home/gsobral/www/fiap-hackaton/src/)",
-      "Bash(docker exec fiap-hackaton-postgres *)"
+      "Bash(docker exec fiap-hackaton-postgres *)",
+      "Bash(dotnet test *)",
+      "Bash(pip install *)",
+      "Bash(python -m pytest tests/ -v)",
+      "Bash(python3 -m venv .venv)",
+      "Bash(.venv/bin/pip install *)",
+      "Bash(.venv/bin/python -m pytest tests/ -v)"
     ]
   }
 }

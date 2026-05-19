@@ -1,13 +1,22 @@
 version: "3.9"
 
 services:
+  nginx:
+    image: nginx:alpine
+    container_name: fiap-hackaton-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+
   api:
     build:
       context: ./src
       dockerfile: Dockerfile
     container_name: fiap-hackaton-api
-    ports:
-      - "8080:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__PostgreSql: "Host=postgres;Port=5432;Database=fiap_hackaton;Username=postgres;Password=postgres"
@@ -17,13 +26,15 @@ services:
       RabbitMQ__Password: guest
       RabbitMQ__ExchangeName: fiap-hackaton-exchange
       FileStorage__BasePath: /app/uploads
+      Cors__AllowedOrigins__0: "http://localhost"
+      Cors__AllowedOrigins__1: "http://localhost:3000"
       # Local AI service (highest priority — uncomment to use instead of Claude)
       # LocalAi__BaseUrl: http://ia-service:8000
       # Gemini (uncomment to use instead of Claude)
       # Gemini__ApiKey: <your-gemini-key-here>
       # Gemini__Model: gemini-2.0-flash
       # Claude / Anthropic (active)
-      Anthropic__ApiKey: <your-anthropic-key-here>
+      Anthropic__ApiKey: 
       Anthropic__Model: claude-sonnet-4-6
       # OpenAI (fallback) — only used if Gemini key is absent
       # OpenAI__ApiKey: <your-openai-key-here>
@@ -42,8 +53,6 @@ services:
       context: ./ia-service
       dockerfile: Dockerfile
     container_name: fiap-hackaton-ia
-    ports:
-      - "8001:8000"
     environment:
       # Qwen2-VL-2B: good balance of quality and speed (~4 GB download)
       MODEL_ID: Qwen/Qwen2-VL-2B-Instruct
@@ -63,8 +72,6 @@ services:
       POSTGRES_DB: fiap_hackaton
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -78,8 +85,7 @@ services:
     image: rabbitmq:3.13-management-alpine
     container_name: fiap-hackaton-rabbitmq
     ports:
-      - "5672:5672"
-      - "15672:15672"   # management UI
+      - "15672:15672"   # management UI — dev only
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest

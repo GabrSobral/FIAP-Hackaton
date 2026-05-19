@@ -24,15 +24,23 @@ A **FIAP Secure Systems** decidiu criar um MVP que recebe um diagrama de arquite
 A solução segue **Clean Architecture** com abordagem de microsserviços. As responsabilidades estão divididas em serviços distintos que se comunicam via REST e mensageria assíncrona.
 
 ```
-┌─────────────────┐     REST      ┌─────────────────────────────┐
-│  Frontend / BFF │ ────────────► │  ASP.NET Core API  :8080    │
-│  (Vanilla JS)   │ ◄──── SSE ── │  (Upload + Orquestração +   │
-└─────────────────┘               │   Status + Relatório)       │
+┌─────────────────┐    HTTP :80   ┌─────────────────────────────┐
+│  Frontend       │ ────────────► │  nginx (API Gateway)  :80   │
+│  (Vanilla JS)   │ ◄──── SSE ── │  /api/v1/* → api:8080       │
+└─────────────────┘               │  /health   → api:8080       │
+                                  │  /openapi* → 404 (bloqueado)│
                                   └──────────────┬──────────────┘
+                                                 │ proxy reverso
+                                                 ▼
+                                  ┌──────────────────────────────┐
+                                  │  ASP.NET Core API  (interno) │
+                                  │  (Upload + Orquestração +    │
+                                  │   Status + Relatório)        │
+                                  └──────────────┬───────────────┘
                                                  │ publica evento
                                                  ▼
                                   ┌──────────────────────────────┐
-                                  │  RabbitMQ                    │
+                                  │  RabbitMQ          (interno) │
                                   │  Exchange: fiap-hackaton-ex. │
                                   │  Fila: diagram-analysis      │
                                   └──────────────┬───────────────┘
@@ -45,7 +53,7 @@ A solução segue **Clean Architecture** com abordagem de microsserviços. As re
                                              │ AnalyzeAsync
                               ┌──────────────▼──────────────────────────┐
                               │       Camada de IA (ordem de prioridade)│
-                              │  1. ia-service (Qwen2-VL local) :8001  │
+                              │  1. ia-service (Qwen2-VL) (interno)    │
                               │  2. Gemini API (gemini-2.0-flash)       │
                               │  3. Claude API (Anthropic)              │
                               │  4. OpenAI API                          │
@@ -54,7 +62,7 @@ A solução segue **Clean Architecture** com abordagem de microsserviços. As re
                                              │ salva resultado
                                              ▼
                                   ┌──────────────────────────────┐
-                                  │  PostgreSQL :5432            │
+                                  │  PostgreSQL        (interno) │
                                   │  Analysis · Report ·         │
                                   │  AnalysisLog                 │
                                   └──────────────────────────────┘
@@ -93,7 +101,7 @@ Received ──► Processing ──► Processed
 
 ## Referência da API
 
-URL base: `http://localhost:8080/api/v1`
+URL base: `http://localhost/api/v1`
 
 | Método | Rota | Descrição |
 |---|---|---|
@@ -120,7 +128,11 @@ flowchart TD
         UI["upload-dropzone / status-tracker / report-panel / history-panel"]
     end
 
-    subgraph API["ASP.NET Core API - porta 8080"]
+    subgraph GW["API Gateway - nginx - porta 80"]
+        NGINX["Proxy Reverso\n/api/v1/* e /health → api:8080\n/openapi* → 404 bloqueado\nSSE: proxy_buffering off"]
+    end
+
+    subgraph API["ASP.NET Core API - interno"]
         EP["Camada de Apresentacao - Minimal API - /api/v1/analyses"]
         SSE["GET /stream - Server-Sent Events"]
         SVC["Servicos de Aplicacao - CreateAnalysis / GetAnalysis / GetAnalysisStatus / GetAnalysisReport"]
@@ -134,14 +146,14 @@ flowchart TD
         CON --> SVC
     end
 
-    subgraph Infra["Infraestrutura - Docker Compose"]
-        MQ["RabbitMQ - porta 5672 - fila: diagram-analysis"]
-        DB[("PostgreSQL - porta 5432 - fiap_hackaton")]
+    subgraph Infra["Infraestrutura - Docker Compose - rede interna"]
+        MQ["RabbitMQ - interno - fila: diagram-analysis"]
+        DB[("PostgreSQL - interno - fiap_hackaton")]
         VOL[("volume uploads")]
     end
 
     subgraph AILayer["Camada de IA - selecao por prioridade"]
-        LOCAL["1o - ia-service porta 8001 - FastAPI + Qwen2-VL"]
+        LOCAL["1o - ia-service - interno - FastAPI + Qwen2-VL"]
         GEMINI["2o - Gemini API - gemini-2.0-flash"]
         CLAUDE["3o - Claude API"]
         OPENAI["4o - OpenAI API"]
@@ -149,8 +161,9 @@ flowchart TD
     end
 
     User -->|"envia diagrama - JPEG/PNG/GIF/WEBP/PDF"| UI
-    UI -->|"POST /api/v1/analyses"| EP
-    UI -->|"SSE /stream a cada 2s"| SSE
+    UI -->|"HTTP :80"| NGINX
+    NGINX -->|"POST /api/v1/analyses"| EP
+    NGINX -->|"SSE /stream a cada 2s"| SSE
     SSE --> SVC
 
     SVC -->|"salva arquivo"| VOL
@@ -166,7 +179,7 @@ flowchart TD
     CON -->|"salva Analysis + Report + AnalysisLog"| DB
     SVC -->|"le Analysis / Report"| DB
 
-    UI -->|"GET /api/v1/analyses/id/report"| EP
+    UI -->|"GET /api/v1/analyses/id/report"| NGINX
 ```
 
 ---
@@ -245,12 +258,12 @@ Na primeira execução, o `ia-service` local fará o download do modelo Qwen2-VL
 
 | Serviço | URL |
 |---|---|
-| API | http://localhost:8080 |
-| Documentação da API (OpenAPI) | http://localhost:8080/openapi/v1.json |
+| **API Gateway (nginx)** | http://localhost |
 | Frontend | abra `frontend/index.html` no navegador |
-| ia-service | http://localhost:8001 |
 | Painel do RabbitMQ | http://localhost:15672 (guest / guest) |
-| PostgreSQL | localhost:5432 (postgres / postgres) |
+| API (interno) | `api:8080` — não exposto ao host |
+| ia-service (interno) | `ia-service:8000` — não exposto ao host |
+| PostgreSQL (interno) | `postgres:5432` — não exposto ao host |
 
 ### Trocando o provedor de IA
 
@@ -286,10 +299,11 @@ dotnet test
 
 | Serviço | Runtime | Porta interna | Porta no host |
 |---|---|---|---|
-| `api` | ASP.NET Core (.NET 10) | 8080 | 8080 |
-| `ia-service` | FastAPI + Qwen2-VL (Python 3.11) | 8000 | 8001 |
-| `postgres` | postgres:16-alpine | 5432 | 5432 |
-| `rabbitmq` | rabbitmq:3.13-management-alpine | 5672 / 15672 | 5672 / 15672 |
+| `nginx` | nginx:alpine | 80 | **80** |
+| `api` | ASP.NET Core (.NET 10) | 8080 | — (interno) |
+| `ia-service` | FastAPI + Qwen2-VL (Python 3.11) | 8000 | — (interno) |
+| `postgres` | postgres:16-alpine | 5432 | — (interno) |
+| `rabbitmq` | rabbitmq:3.13-management-alpine | 5672 / 15672 | 15672 (UI dev) |
 
 ---
 

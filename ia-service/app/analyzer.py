@@ -184,20 +184,56 @@ class DiagramAnalyzer:
 # ─── Parsing helpers ──────────────────────────────────────────────────────────
 
 _FIELDS = ("components", "risks", "recommendations", "feedback")
+_REQUIRED_FIELDS = ("components", "risks", "recommendations")
+_MIN_FIELD_LENGTH = 20
+
+_PLACEHOLDER_VALUES: frozenset[str] = frozenset({
+    "n/a", "não disponível", "not available", "not applicable",
+    "no information", "sem informação", "nenhum", "none",
+    "não identificado", "não há riscos", "no risks identified",
+})
+
+
+def _sanitize_field(value: str) -> str:
+    """Strip control characters and collapse excessive blank lines."""
+    # Remove C0/C1 control chars except \t (0x09) and \n (0x0A)
+    clean = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", value)
+    clean = re.sub(r"\n{3,}", "\n\n", clean.strip())
+    return clean
+
+
+def _validate_result(result: dict) -> None:
+    """Raise ValueError if any required field is empty, too short, or a placeholder."""
+    for field in _REQUIRED_FIELDS:
+        value = result.get(field, "")
+        stripped = value.strip()
+
+        if not stripped or len(stripped) < _MIN_FIELD_LENGTH:
+            raise ValueError(
+                f"Guardrail: field '{field}' is empty or too short ({len(stripped)} chars)."
+            )
+
+        first_line = stripped.split("\n")[0].strip().lower()
+        if stripped.lower() in _PLACEHOLDER_VALUES or first_line in _PLACEHOLDER_VALUES:
+            raise ValueError(
+                f"Guardrail: field '{field}' contains a placeholder value: {value!r}"
+            )
 
 
 def _parse(text: str) -> dict:
-    """Extract the four fields from the model's raw output."""
-    # Strip optional markdown fences
+    """Extract the four fields from the model's raw output, then sanitise and validate."""
     clean = re.sub(r"^```(?:json)?\s*", "", text.strip())
     clean = re.sub(r"\s*```$", "", clean.strip())
 
     try:
         data = json.loads(clean)
-        return {k: str(data.get(k, "")) for k in _FIELDS}
+        result = {k: _sanitize_field(str(data.get(k, ""))) for k in _FIELDS}
     except json.JSONDecodeError:
         logger.warning("Model output is not valid JSON — falling back to regex extraction.")
-        return {k: _extract_field(text, k) for k in _FIELDS}
+        result = {k: _sanitize_field(_extract_field(text, k)) for k in _FIELDS}
+
+    _validate_result(result)
+    return result
 
 
 def _extract_field(text: str, field: str) -> str:

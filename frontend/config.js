@@ -6,4 +6,4 @@
  *   <script>window.__API_BASE__ = 'https://my-backend.example.com';</script>
  */
 export const API_BASE =
-  (typeof window !== 'undefined' && window.__API_BASE__) || 'http://localhost:8080';
+  (typeof window !== 'undefined' && window.__API_BASE__) || 'http://localhost';

@@ -110,11 +110,23 @@ public class ClaudeAnalysisService(
                 var result  = JsonSerializer.Deserialize<AiJsonResult>(safeJson, JsonOptions)
                     ?? throw new InvalidOperationException("Could not deserialize Claude structured response.");
 
-                return new AiAnalysisResult(
+                var analysisResult = new AiAnalysisResult(
                     BuildBulletList(result.Components),
                     BuildNumberedList(result.Risks),
                     BuildNumberedList(result.Recommendations),
                     BuildParagraphs(result.Feedback));
+
+                try
+                {
+                    return AiOutputGuardrails.ValidateAndSanitize(analysisResult, logger, "Claude");
+                }
+                catch (AiGuardrailException ex) when (attempt < MaxRetries)
+                {
+                    logger.LogWarning(
+                        "Claude guardrail failed (attempt {Attempt}/{Max}): {Message}. Retrying…",
+                        attempt, MaxRetries, ex.Message);
+                    continue;
+                }
             }
 
             // 429 = rate limited — wait and retry with exponential backoff
