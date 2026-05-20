@@ -64,7 +64,7 @@ services:
       RabbitMQ__Password: guest
       RabbitMQ__ExchangeName: fiap-hackaton-exchange
       # LocalAi__BaseUrl: http://ia-service:8000
-      Anthropic__ApiKey: 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
+      Anthropic__ApiKey: 
       Anthropic__Model: claude-sonnet-4-6
     volumes:
       - uploads:/app/uploads
