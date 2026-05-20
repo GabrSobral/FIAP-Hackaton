@@ -21,7 +21,11 @@
       "Bash(.venv/bin/python -m pytest tests/ -v)",
       "Bash(dotnet sln *)",
       "Bash(grep -v \"^$\")",
-      "Bash(docker volume *)"
+      "Bash(docker volume *)",
+      "Bash(mkdir -p services infra)",
+      "Bash(git mv *)",
+      "Bash(rmdir workers *)",
+      "Bash(dotnet restore *)"
     ]
   }
 }

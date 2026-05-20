@@ -21,14 +21,14 @@ jobs:
           dotnet-version: "10.0.x"
 
       - name: Restore dependencies
-        run: dotnet restore src/fiap-hackaton.sln
+        run: dotnet restore services/api/fiap-hackaton.sln
 
       - name: Build
-        run: dotnet build src/fiap-hackaton.sln --no-restore --configuration Release
+        run: dotnet build services/api/fiap-hackaton.sln --no-restore --configuration Release
 
       - name: Run tests
         run: >
-          dotnet test src/fiap-hackaton.Tests/fiap-hackaton.Tests.csproj
+          dotnet test services/api/fiap-hackaton.Tests/fiap-hackaton.Tests.csproj
           --no-build
           --configuration Release
           --logger "trx;LogFileName=test-results.trx"
@@ -55,10 +55,10 @@ jobs:
           python-version: "3.11"
 
       - name: Install test dependencies
-        run: pip install -r ia-service/requirements-test.txt
+        run: pip install -r services/ia-service/requirements-test.txt
 
       - name: Run tests
-        working-directory: ia-service
+        working-directory: services/ia-service
         run: pytest --tb=short --junitxml=../test-results/ia-service.xml
 
       - name: Upload test results

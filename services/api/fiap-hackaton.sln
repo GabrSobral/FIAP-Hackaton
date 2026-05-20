@@ -7,9 +7,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "fiap-hackaton", "fiap-hacka
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "fiap-hackaton.Tests", "fiap-hackaton.Tests\fiap-hackaton.Tests.csproj", "{3EB06E86-4014-4AAE-9684-C0DF0D0C822F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "analysis-worker", "..\workers\analysis-worker\analysis-worker.csproj", "{DF14612E-05DD-42C3-B8D3-A775C4BF14A3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "analysis-worker", "..\analysis-worker\analysis-worker.csproj", "{DF14612E-05DD-42C3-B8D3-A775C4BF14A3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "report-service", "..\workers\report-service\report-service.csproj", "{DF79BA65-2942-453F-9A3C-895D68840D5F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "report-service", "..\report-service\report-service.csproj", "{DF79BA65-2942-453F-9A3C-895D68840D5F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -7,7 +7,7 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - api
       - report-service
@@ -15,7 +15,7 @@ services:
 
   api:
     build:
-      context: ./src
+      context: ./services/api
       dockerfile: Dockerfile
     container_name: fiap-hackaton-api
     environment:
@@ -53,7 +53,7 @@ services:
   analysis-worker:
     build:
       context: .
-      dockerfile: workers/analysis-worker/Dockerfile
+      dockerfile: services/analysis-worker/Dockerfile
     container_name: fiap-hackaton-analysis-worker
     environment:
       ConnectionStrings__PostgreSql: "Host=postgres-api;Port=5432;Database=fiap_hackaton;Username=postgres;Password=postgres"
@@ -80,7 +80,7 @@ services:
   report-service:
     build:
       context: .
-      dockerfile: workers/report-service/Dockerfile
+      dockerfile: services/report-service/Dockerfile
     container_name: fiap-hackaton-report-service
     environment:
       ASPNETCORE_ENVIRONMENT: Development
@@ -95,7 +95,7 @@ services:
 
   ia-service:
     build:
-      context: ./ia-service
+      context: ./services/ia-service
       dockerfile: Dockerfile
     container_name: fiap-hackaton-ia
     environment:
