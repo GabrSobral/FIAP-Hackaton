@@ -89,6 +89,49 @@ A solução segue **Clean Architecture** com **microsserviços independentes**, 
 
 ---
 
+## Estrutura do Repositório
+
+```
+fiap-hackaton/
+├── services/                        # Microsserviços da aplicação
+│   ├── api/                         # API principal — upload, orquestração, status (ASP.NET Core)
+│   │   ├── Domain/                  # Entidades, interfaces, enums, eventos
+│   │   ├── Application/             # Casos de uso (CreateAnalysis, GetAnalysis, …)
+│   │   ├── Infrastructure/          # EF Core, RabbitMQ, armazenamento, adaptadores de IA
+│   │   ├── Presentation/            # Endpoints Minimal API, middlewares
+│   │   ├── fiap-hackaton.Tests/     # Testes unitários e de integração (.NET)
+│   │   ├── fiap-hackaton.csproj
+│   │   ├── fiap-hackaton.sln
+│   │   └── Dockerfile
+│   ├── analysis-worker/             # Worker assíncrono — consome fila, aciona IA, persiste resultado
+│   │   ├── Program.cs
+│   │   ├── analysis-worker.csproj
+│   │   └── Dockerfile
+│   ├── report-service/              # Microsserviço de leitura — entrega relatórios ao frontend
+│   │   ├── Program.cs
+│   │   ├── report-service.csproj
+│   │   └── Dockerfile
+│   └── ia-service/                  # Serviço de IA local — FastAPI + Qwen2-VL (Python 3.11)
+│       ├── app/                     # main.py, analyzer.py, schemas.py, config.py
+│       ├── tests/                   # Testes pytest
+│       ├── requirements.txt
+│       └── Dockerfile
+├── frontend/                        # Interface web — Vanilla JS + Web Components
+│   ├── index.html
+│   ├── app.js
+│   ├── components/                  # upload-dropzone, status-tracker, report-panel, …
+│   ├── modules/                     # api.js, polling.js, theme.js, toast.js
+│   └── styles/
+├── infra/                           # Configurações de infraestrutura
+│   ├── nginx/nginx.conf             # API Gateway — roteamento e SSE
+│   └── postgres/init.sql            # Criação do banco worker_db
+├── docs/                            # Documentação adicional e slides
+├── docker-compose.yml               # Orquestração de todos os 8 serviços
+└── Directory.Build.props            # Configurações globais MSBuild
+```
+
+---
+
 ## Fluxo da Solução
 
 1. **Upload** — o usuário envia uma imagem ou PDF pelo frontend. O navegador chama `POST /api/v1/analyses`. A API valida o arquivo (máx. 10 MB, tipos MIME permitidos), salva no volume compartilhado `uploads`, persiste um registro `Analysis` com status `Received` em `postgres-api` e publica um `DiagramUploadedEvent` no RabbitMQ.
@@ -271,63 +314,94 @@ Todos os arquivos são validados na fronteira da API antes de qualquer processam
 
 ### Pré-requisitos
 
-- [Docker](https://www.docker.com/) e Docker Compose v2+
-- Pelo menos **6 GB de RAM livre** (o modelo Qwen2-VL local requer ~4 GB na primeira carga)
-- *(Opcional)* Uma chave de API do Gemini, Claude ou OpenAI
+| Ferramenta | Versão mínima | Observação |
+|---|---|---|
+| [Docker](https://www.docker.com/) + Docker Compose | v2+ | incluso no Docker Desktop |
+| RAM livre | 6 GB | o modelo Qwen2-VL local requer ~4 GB na primeira carga |
+| Chave de API *(opcional)* | — | Gemini, Claude ou OpenAI como alternativa ao modelo local |
 
-### Executando com Docker Compose
+### 1. Clonar o repositório
 
 ```bash
-# 1. Clone o repositório
 git clone <url-do-repositorio>
 cd fiap-hackaton
-
-# 2. Inicie todos os serviços
-docker compose up --build
 ```
 
-Na primeira execução, o `ia-service` fará o download do modelo Qwen2-VL-2B (~4 GB). Execuções subsequentes reutilizam os pesos em cache no volume `hf_cache`.
+### 2. (Opcional) Configurar provedor de IA
 
-### URLs dos serviços
-
-| Serviço | URL |
-|---|---|
-| **Frontend** | abra `frontend/index.html` no navegador |
-| **API Gateway (nginx)** | http://localhost |
-| **Painel do RabbitMQ** | http://localhost:15672 (guest / guest) |
-| api (interno) | `api:8080` |
-| analysis-worker (interno) | container sem porta exposta |
-| report-service (interno) | `report-service:8080` |
-| ia-service (interno) | `ia-service:8000` |
-| postgres-api (interno) | `postgres-api:5432` |
-| postgres-worker (interno) | `postgres-worker:5432` |
-
-### Trocando o provedor de IA
-
-Edite o bloco `environment` do serviço `analysis-worker` no `docker-compose.yml`:
+Por padrão, o `analysis-worker` usa o **Claude (Anthropic)**. Para trocar, edite o bloco `environment` do serviço `analysis-worker` em `docker-compose.yml`:
 
 ```yaml
-# Usar Qwen2-VL local (maior prioridade)
+# Opção 1 — Qwen2-VL local (sem custo, ~4 GB de download na 1ª execução)
 LocalAi__BaseUrl: http://ia-service:8000
 
-# Usar Gemini (comente LocalAi__BaseUrl)
+# Opção 2 — Gemini
 Gemini__ApiKey: <sua-chave>
 Gemini__Model: gemini-2.0-flash
 
-# Usar Claude
+# Opção 3 — Claude (Anthropic) ← padrão atual
 Anthropic__ApiKey: <sua-chave>
+Anthropic__Model: claude-sonnet-4-6
 
-# Usar OpenAI
+# Opção 4 — OpenAI
 OpenAI__ApiKey: <sua-chave>
+OpenAI__Model: gpt-4o
 ```
 
-A seleção é automática: a primeira chave configurada é utilizada.
+A seleção é automática por prioridade: Local → Gemini → Claude → OpenAI → Stub (mock).  
+Deixe todas as chaves em branco para usar o Stub (retorna dados fixos, sem IA real).
+
+### 3. Subir os serviços
+
+```bash
+docker compose up --build
+```
+
+Na primeira execução o Docker vai:
+1. Compilar as imagens .NET e Python
+2. Baixar o modelo Qwen2-VL-2B (~4 GB) se `ia-service` estiver habilitado
+3. Aplicar as migrations do banco de dados automaticamente
+
+As próximas execuções são mais rápidas pois as imagens e o modelo ficam em cache.
+
+### 4. Abrir o frontend
+
+O frontend é um arquivo HTML estático — **abra diretamente no navegador**:
+
+```
+frontend/index.html
+```
+
+A página se conecta ao API Gateway em `http://localhost` (porta 80, servida pelo nginx).
+
+### URLs disponíveis após o `docker compose up`
+
+| Serviço | URL | Acesso |
+|---|---|---|
+| **Frontend** | `frontend/index.html` (arquivo local) | público |
+| **API Gateway (nginx)** | http://localhost | público |
+| **Painel RabbitMQ** | http://localhost:15672 · `guest` / `guest` | dev only |
+| api | `api:8080` | interno |
+| analysis-worker | — | interno (sem porta) |
+| report-service | `report-service:8080` | interno |
+| ia-service | `ia-service:8000` | interno |
+| postgres-api | `postgres-api:5432` | interno |
+| postgres-worker | `postgres-worker:5432` | interno |
 
 ### Executando os testes
 
+**Testes .NET** (unitários + integração):
+
 ```bash
-cd src
-dotnet test
+dotnet test services/api/fiap-hackaton.sln
+```
+
+**Testes Python** (ia-service):
+
+```bash
+pip install -r services/ia-service/requirements-test.txt
+cd services/ia-service
+pytest --tb=short
 ```
 
 ---
