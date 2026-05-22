@@ -374,19 +374,19 @@ As próximas execuções são mais rápidas pois as imagens e o modelo ficam em 
 
 ### 4. Abrir o frontend
 
-O frontend é um arquivo HTML estático — **abra diretamente no navegador**:
+O frontend é servido pelo **nginx** junto com os demais serviços. Após o `docker compose up`, acesse:
 
 ```
-frontend/index.html
+http://localhost
 ```
 
-A página se conecta ao API Gateway em `http://localhost` (porta 80, servida pelo nginx).
+> Não abra o arquivo `frontend/index.html` diretamente no navegador — o protocolo `file://` bloqueia ES modules e impedirá o carregamento da aplicação.
 
 ### URLs disponíveis após o `docker compose up`
 
 | Serviço | URL | Acesso |
 |---|---|---|
-| **Frontend** | `frontend/index.html` (arquivo local) | público |
+| **Frontend** | http://localhost | público |
 | **API Gateway (nginx)** | http://localhost | público |
 | **Painel RabbitMQ** | http://localhost:15672 · `guest` / `guest` | dev only |
 | api | `api:8080` | interno |
