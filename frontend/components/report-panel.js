@@ -1,6 +1,7 @@
 import { LitElement, html, css } from 'https://esm.sh/lit@3';
 import { unsafeHTML } from 'https://esm.sh/lit@3/directives/unsafe-html.js';
 import { marked } from 'https://esm.sh/marked@9';
+import { API_BASE } from '../config.js';
 
 marked.use({ gfm: true, breaks: false });
 
@@ -291,17 +292,42 @@ class ReportPanel extends LitElement {
     }
 
     .panel-footer svg { flex-shrink: 0; }
+
+    /* ── Download button ──────────────────────────────────────────────────── */
+    .download-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-md);
+      padding: 6px 14px;
+      font-size: var(--text-xs);
+      font-weight: 600;
+      color: #fff;
+      cursor: pointer;
+      transition:
+        background var(--trans-fast),
+        opacity var(--trans-fast);
+      flex-shrink: 0;
+      margin-left: auto;
+    }
+
+    .download-btn:hover    { background: var(--accent-hover); }
+    .download-btn:disabled { opacity: 0.55; cursor: not-allowed; }
   `;
 
   static properties = {
-    report:     { type: Object },
-    _copiedKey: { state: true },
+    report:       { type: Object },
+    _copiedKey:   { state: true },
+    _downloading: { state: true },
   };
 
   constructor() {
     super();
-    this.report     = null;
-    this._copiedKey = null;
+    this.report       = null;
+    this._copiedKey   = null;
+    this._downloading = false;
   }
 
   render() {
@@ -324,6 +350,18 @@ class ReportPanel extends LitElement {
           <polyline points="12 6 12 12 16 14"/>
         </svg>
         Report generated ${generated.toLocaleString()}
+
+        <button
+          class="download-btn"
+          ?disabled=${this._downloading}
+          @click=${this._downloadPdf}
+          title="Download PDF report"
+        >
+          ${this._downloading
+            ? html`<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Generating…`
+            : html`<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download PDF`
+          }
+        </button>
       </div>
     `;
   }
@@ -380,6 +418,37 @@ class ReportPanel extends LitElement {
       window.dispatchEvent(
         new CustomEvent('app-toast', { detail: { message: 'Failed to copy.', type: 'error' } }),
       );
+    }
+  }
+
+  async _downloadPdf() {
+    if (this._downloading) return;
+    this._downloading = true;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/reports/${this.report.analysisId}/pdf`);
+      if (!res.ok) throw new Error(`PDF generation failed (HTTP ${res.status})`);
+
+      const blob      = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a         = Object.assign(document.createElement('a'), {
+        href:     objectUrl,
+        download: `report-${this.report.analysisId}.pdf`,
+      });
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: { message: 'PDF downloaded!', type: 'success' },
+      }));
+    } catch (err) {
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: { message: err.message ?? 'PDF download failed.', type: 'error' },
+      }));
+    } finally {
+      this._downloading = false;
     }
   }
 }

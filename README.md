@@ -33,11 +33,12 @@ A solução segue **Clean Architecture** com **microsserviços independentes**, 
                                           │ /api/v1/             │ /api/v1/reports/
                                           ▼                      ▼
                            ┌──────────────────────┐  ┌─────────────────────────────┐
-                           │  api  (interno)       │  │  report-service  (interno)  │
-                           │  Upload + Orquestração│  │  GET /api/v1/reports/{id}   │
-                           │  + Status tracking    │  └────────────┬────────────────┘
-                           └──────┬────────┬───────┘               │ lê Reports
-                                  │        │ lê/escreve            ▼
+                           │  api  (interno)       │  │  report-service  (interno)      │
+                           │  Upload + Orquestração│  │  GET /api/v1/reports/{id}       │
+                           │  + Status tracking    │  │  GET /api/v1/reports/{id}/pdf   │
+                           └──────┬────────┬───────┘  └────────────┬────────────────────┘
+                                  │        │ lê/escreve            │ lê Reports
+                                  │        │                       ▼
                             publica        │            ┌──────────────────────┐
                             evento         ▼            │  postgres-worker     │
                                   │  ┌──────────────┐  │  (banco do worker)   │
@@ -140,7 +141,7 @@ fiap-hackaton/
 
 3. **Análise por IA** — o provedor ativo recebe o diagrama e retorna um JSON estruturado com quatro campos: `components`, `risks`, `recommendations` e `feedback`. O resultado é persistido como `Report` em `postgres-worker` e o status da análise avança para `Processed` (ou `Error` em caso de falha).
 
-4. **Entrega do resultado** — o frontend acompanha o progresso via Server-Sent Events (`GET /api/v1/analyses/stream`, atualizado a cada 2 s). Ao atingir `Processed`, busca o relatório em `GET /api/v1/reports/{id}` — roteado pelo nginx para o `report-service`, que lê diretamente de `postgres-worker`.
+4. **Entrega do resultado** — o frontend acompanha o progresso via Server-Sent Events (`GET /api/v1/analyses/stream`, atualizado a cada 2 s). Ao atingir `Processed`, busca o relatório em `GET /api/v1/reports/{id}` — roteado pelo nginx para o `report-service`, que lê diretamente de `postgres-worker`. O usuário pode então clicar em **Download PDF** para baixar o relatório formatado via `GET /api/v1/reports/{id}/pdf`, gerado pelo `report-service` usando QuestPDF com fonte Inter e layout fiel ao design do frontend.
 
 ### Ciclo de vida do status da análise
 
@@ -164,7 +165,8 @@ URL base: `http://localhost/api/v1`
 | `GET` | `/analyses/stream` | api | Stream SSE — lista completa enviada a cada 2 s |
 | `GET` | `/analyses/{id}` | api | Detalhes de uma análise |
 | `GET` | `/analyses/{id}/status` | api | Status atual do processamento |
-| `GET` | `/reports/{id}` | report-service | Relatório gerado pela IA |
+| `GET` | `/reports/{id}` | report-service | Relatório gerado pela IA (JSON) |
+| `GET` | `/reports/{id}/pdf` | report-service | Relatório em PDF para download |
 
 Tipos de arquivo aceitos: `image/jpeg`, `image/png`, `image/gif`, `image/webp`, `application/pdf`  
 Tamanho máximo: **10 MB**
@@ -175,17 +177,20 @@ Tamanho máximo: **10 MB**
 
 ```mermaid
 flowchart TD
-    User(["Usuario - Navegador"])
+    User(["Usuário - Navegador"])
 
     subgraph Frontend["Frontend - Vanilla JS + Web Components"]
         UI["upload-dropzone / status-tracker / report-panel / history-panel"]
     end
 
     subgraph GW["API Gateway - nginx - porta 80"]
-        NGINX["Proxy Reverso<br/>/api/v1/reports/* - report-service:8080<br/>/api/v1/* e /health - api:8080<br/>SSE: proxy_buffering off"]
+        NGINX["`Proxy Reverso
+/api/v1/reports/ → report-service:8080
+/api/v1/ e /health → api:8080
+SSE: proxy_buffering off`"]
     end
 
-    subgraph API["api - Upload e Orquestracao - ASP.NET Core - interno"]
+    subgraph API["api - Upload e Orquestracao - ASP.NET Core"]
         EP["Minimal API - /api/v1/analyses"]
         SSE["GET /stream - Server-Sent Events"]
         SVC["CreateAnalysis / GetAnalysis / GetAnalysisStatus / ListAnalyses"]
@@ -197,32 +202,35 @@ flowchart TD
         SVC --> PUB
     end
 
-    subgraph WORKER["analysis-worker - microsservico - interno"]
-        CON["DiagramAnalysisConsumer<br/>consume fila - chama IA - persiste resultado"]
+    subgraph WORKER["analysis-worker - microsservico"]
+        CON["`DiagramAnalysisConsumer
+consume fila - chama IA - persiste resultado`"]
     end
 
-    subgraph REPSVC["report-service - microsservico - interno"]
-        REP["GET /api/v1/reports/id<br/>le Reports de postgres-worker"]
+    subgraph REPSVC["report-service - microsservico"]
+        REP["`GET /api/v1/reports/id - JSON
+GET /api/v1/reports/id/pdf - Download PDF
+le Reports de postgres-worker`"]
     end
 
     subgraph DB_API["postgres-api - banco do api"]
-        PG_API[("fiap_hackaton<br/>Analyses<br/>AnalysisLogs")]
+        PG_API[("fiap_hackaton - Analyses + AnalysisLogs")]
     end
 
     subgraph DB_WORKER["postgres-worker - banco do worker"]
-        PG_WORKER[("worker_db<br/>Reports")]
+        PG_WORKER[("worker_db - Reports")]
     end
 
-    subgraph Infra["Infraestrutura - Docker Compose - rede interna"]
+    subgraph Infra["Infraestrutura - Docker Compose"]
         MQ["RabbitMQ - fila: diagram-analysis"]
         VOL[("volume uploads")]
     end
 
     subgraph AILayer["Camada de IA - selecao por prioridade"]
-        LOCAL["1o - ia-service - FastAPI + Qwen2-VL"]
-        GEMINI["2o - Gemini API - gemini-2.0-flash"]
-        CLAUDE["3o - Claude API - Anthropic"]
-        OPENAI["4o - OpenAI API"]
+        LOCAL["1. ia-service - FastAPI + Qwen2-VL"]
+        GEMINI["2. Gemini API - gemini-2.0-flash"]
+        CLAUDE["3. Claude API - Anthropic"]
+        OPENAI["4. OpenAI API"]
         STUB["fallback - StubAiAnalysisService"]
     end
 
@@ -230,7 +238,7 @@ flowchart TD
     UI -->|"HTTP :80"| NGINX
     NGINX -->|"POST /api/v1/analyses"| EP
     NGINX -->|"SSE /stream"| SSE
-    NGINX -->|"GET /api/v1/reports/id"| REP
+    NGINX -->|"GET /api/v1/reports"| REP
     SSE --> SVC
 
     SVC -->|"salva arquivo"| VOL
@@ -243,7 +251,7 @@ flowchart TD
     CON -.->|"sem chave Claude"| OPENAI
     CON -.->|"sem IA configurada"| STUB
 
-    SVC -->|"le/escreve Analyses e AnalysisLogs"| PG_API
+    SVC -->|"le/escreve Analyses + AnalysisLogs"| PG_API
     CON -->|"atualiza status da Analysis"| PG_API
     CON -->|"persiste Report"| PG_WORKER
     REP -->|"le Reports"| PG_WORKER

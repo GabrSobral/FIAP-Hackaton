@@ -11,6 +11,15 @@
     <ProjectReference Include="../api/fiap-hackaton.csproj" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.5" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.5" />
+    <PackageReference Include="QuestPDF" Version="2025.3.*" />
+    <PackageReference Include="Markdig" Version="0.40.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Fonts\Inter-Regular.ttf" />
+    <EmbeddedResource Include="Fonts\Inter-Medium.ttf" />
+    <EmbeddedResource Include="Fonts\Inter-SemiBold.ttf" />
+    <EmbeddedResource Include="Fonts\Inter-Bold.ttf" />
   </ItemGroup>
 
 </Project>

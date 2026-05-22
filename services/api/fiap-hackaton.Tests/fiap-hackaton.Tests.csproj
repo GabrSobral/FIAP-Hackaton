@@ -30,6 +30,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Link PdfReportGenerator directly to avoid Program class ambiguity from referencing report-service.csproj -->
+    <Compile Include="..\..\report-service\PdfReportGenerator.cs" Link="Helpers\PdfReportGenerator.cs" />
+    <PackageReference Include="QuestPDF" Version="2025.3.*" />
+    <PackageReference Include="Markdig" Version="0.40.*" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Update="Microsoft.EntityFrameworkCore" Version="10.0.5" />
     <PackageReference Update="Microsoft.EntityFrameworkCore.Relational" Version="10.0.5" />
     <PackageReference Update="Microsoft.EntityFrameworkCore.Abstractions" Version="10.0.5" />

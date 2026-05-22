@@ -25,7 +25,9 @@
       "Bash(mkdir -p services infra)",
       "Bash(git mv *)",
       "Bash(rmdir workers *)",
-      "Bash(dotnet restore *)"
+      "Bash(dotnet restore *)",
+      "Read(//tmp/**)",
+      "Bash(unzip -o inter.zip -d inter)"
     ]
   }
 }
